@@ -128,7 +128,13 @@ void print_key(const uint8_t *key, size_t length)
 #define CHANNEL_KEY_SIZE 32
 
 static timestamp_t prev_timestamp = 0;
-decoder_id_t THIS_DECODER_ID = getenv("DECODER_ID");
+
+uint32_t hexstr_to_uint32(char *hex_str);
+
+// const char* DID = "DECODER_ID";
+// char * DECODER_ENV_VAR = getenv(DID);
+decoder_id_t THIS_DECODER_ID ;
+//= hexstr_to_uint32(getenv(DID));
 
 /********************* STATE MACROS ***********************/
 // Calculate the flash address where we will store channel info as the 2nd to last page available
@@ -208,6 +214,62 @@ void int2str(int num) {
     }
     print_debug(str);
 }
+
+uint32_t hexstr_to_uint32(char *hex_str) {
+    uint32_t result = 0;
+    int i = 0;
+
+    // Skip optional "0x" or "0X"
+    if (hex_str[0] == '0' && (hex_str[1] == 'x' || hex_str[1] == 'X')) {
+        i = 2;
+    }
+
+    for (; hex_str[i] != '\0'; ++i) {
+        char c = hex_str[i];
+        uint8_t digit;
+
+        if (isdigit(c)) {
+            digit = c - '0';
+        } else if (c >= 'a' && c <= 'f') {
+            digit = 10 + (c - 'a');
+        } else if (c >= 'A' && c <= 'F') {
+            digit = 10 + (c - 'A');
+        } else {
+            // Invalid character in hex string
+            break;
+        }
+
+        result = (result << 4) | digit;
+    }
+
+    return result;
+}
+
+
+/******************* UTILITY FUNCTIONS ********************/
+/** @brief Checks whether the decoder is subscribed to a given channel
+ * 
+ *  @param channel The channel number to be checked.
+ *  @return 1 if the the decoder is subscribed to the channel.  0 if not.
+ */
+int is_subscribed(channel_id_t channel)
+{
+    // Check if this is an emergency broadcast message
+    if (channel == EMERGENCY_CHANNEL)
+    {
+        return 1;
+    }
+    // Check if the decoder has has a subscription
+    for (int i = 0; i < MAX_CHANNEL_COUNT; i++)
+    {
+        if (decoder_status.subscribed_channels[i].id == channel && decoder_status.subscribed_channels[i].active)
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 int perform_checks(channel_id_t channel, timestamp_t timestamp){
     // checking all the channel conditions and timestamp conditions before decrypting the frame.
     if (channel > MAX_CHANNEL_COUNT)
@@ -243,30 +305,6 @@ int perform_checks(channel_id_t channel, timestamp_t timestamp){
 
 
 
-
-/******************* UTILITY FUNCTIONS ********************/
-/** @brief Checks whether the decoder is subscribed to a given channel
- * 
- *  @param channel The channel number to be checked.
- *  @return 1 if the the decoder is subscribed to the channel.  0 if not.
- */
-int is_subscribed(channel_id_t channel)
-{
-    // Check if this is an emergency broadcast message
-    if (channel == EMERGENCY_CHANNEL)
-    {
-        return 1;
-    }
-    // Check if the decoder has has a subscription
-    for (int i = 0; i < MAX_CHANNEL_COUNT; i++)
-    {
-        if (decoder_status.subscribed_channels[i].id == channel && decoder_status.subscribed_channels[i].active)
-        {
-            return 1;
-        }
-    }
-    return 0;
-}
 
 
 /********************* CORE FUNCTIONS *********************/
@@ -490,10 +528,10 @@ int handle_update_subscription(size_t pkt_len, uint8_t *uart_buf) {
     memcpy(&end_time, decrypted_data + 12, sizeof(uint64_t));
     memcpy(&channel, decrypted_data + 20, sizeof(uint32_t));
 
-    if(decoder_id != THIS_DECODER_ID){
-        print_error("Invalid decoder ID\n");
-        return -1;
-    }
+    // if(decoder_id != THIS_DECODER_ID){
+    //     print_error("Invalid decoder ID\n");
+    //     return -1;
+    // }
     
     subscription_update_packet_t subscription_update_packet;
     subscription_update_packet.decoder_id = decoder_id;
@@ -774,11 +812,11 @@ int handle_update_subscription_old(size_t pkt_len, uint8_t *uart_buf) {
 
 // }
 
-static const uint8_t MAP_CHANNEL_KEY [9];
+// static const uint8_t MAP_CHANNEL_KEY [9];
 
-for (int i = 0; i < sizeof(MAP_CHANNEL_KEY); i++){
-    MAP_CHANNEL_KEY[i] = 0x00;
-}
+// for (int i = 0; i < sizeof(MAP_CHANNEL_KEY); i++){
+//     MAP_CHANNEL_KEY[i] = 0x00;
+// }
 
 
 void get_channel_key(channel_id_t channel, uint8_t *key) {
@@ -1034,102 +1072,102 @@ int verify_signature(
     return !verify_result;  // 0 = valid,  non-zero(1) = invalid
 }
 
-int old_handle_decode(size_t pkt_len, uint8_t *uart_buf) {
+// int old_handle_decode(size_t pkt_len, uint8_t *uart_buf) {
 
-    int2str(pkt_len);
+//     int2str(pkt_len);
 
-    print_debug("Processing frame data...\n");
-    // Signature and message extraction from new frame
-    // size_t signature_len = 64; // 64 bytes for ECDSA signature (32 bytes for r and 32 bytes for s)
-    uint8_t *signature = uart_buf;                         // Points to first 64 bytes
-    size_t message_len = pkt_len - SIGNATURE_LENGTH ; //ig not .....sizeof(new_frame) - signature_len;
-    //TODO check the ptr arithmetic here
-    uint8_t *encrypted_message = signature + SIGNATURE_LENGTH ; // Points to the encrypted message part
+//     print_debug("Processing frame data...\n");
+//     // Signature and message extraction from new frame
+//     // size_t signature_len = 64; // 64 bytes for ECDSA signature (32 bytes for r and 32 bytes for s)
+//     uint8_t *signature = uart_buf;                         // Points to first 64 bytes
+//     size_t message_len = pkt_len - SIGNATURE_LENGTH ; //ig not .....sizeof(new_frame) - signature_len;
+//     //TODO check the ptr arithmetic here
+//     uint8_t *encrypted_message = signature + SIGNATURE_LENGTH ; // Points to the encrypted message part
 
-    uint8_t signature_buf[64];
-    memcpy(signature_buf, uart_buf, SIGNATURE_LENGTH);
-    print_debug("Signature: ");
-    print_debug(signature_buf);
+//     uint8_t signature_buf[64];
+//     memcpy(signature_buf, uart_buf, SIGNATURE_LENGTH);
+//     print_debug("Signature: ");
+//     print_debug(signature_buf);
     
-    //verifty the signture 
-    int result = verify_signature(encrypted_message, message_len, signature, SIGNATURE_LENGTH, SIGNATURE_PUBLIC_KEY);
-    if (result != 0){
-        STATUS_LED_RED();
-        print_error("FAILED to VERIFY SIGNATURE\n");
-        return -1;
-    }
-    print_debug("Signature verified successfully\n");
+//     //verifty the signture 
+//     int result = verify_signature(encrypted_message, message_len, signature, SIGNATURE_LENGTH, SIGNATURE_PUBLIC_KEY);
+//     if (result != 0){
+//         STATUS_LED_RED();
+//         print_error("FAILED to VERIFY SIGNATURE\n");
+//         return -1;
+//     }
+//     print_debug("Signature verified successfully\n");
 
 
 
-    // Perform ECDH Decryption to obtain the packet, // perform ecdsa decryption using the private key of decoder on the packet
+//     // Perform ECDH Decryption to obtain the packet, // perform ecdsa decryption using the private key of decoder on the packet
     
-    uint8_t iv[AES_BLOCK_SIZE]; //could be 32
-    memcpy(iv, encrypted_message, AES_BLOCK_SIZE);
+//     uint8_t iv[AES_BLOCK_SIZE]; //could be 32
+//     memcpy(iv, encrypted_message, AES_BLOCK_SIZE);
 
-    uint8_t *encrypted_packet = encrypted_message + AES_BLOCK_SIZE;
+//     uint8_t *encrypted_packet = encrypted_message + AES_BLOCK_SIZE;
 
-    int encrypted_packet_len = (int)pkt_len - SIGNATURE_LENGTH - AES_BLOCK_SIZE;
+//     int encrypted_packet_len = (int)pkt_len - SIGNATURE_LENGTH - AES_BLOCK_SIZE;
 
-    uint8_t decrypted_packet[ENCRYPTED_PACKET_LENGTH]; // Adjust size as needed
+//     uint8_t decrypted_packet[ENCRYPTED_PACKET_LENGTH]; // Adjust size as needed
 
-    if(ecdh_decrypt(DECODER_PRIVATE_KEY, ENCODER_PUBLIC_KEY, iv, encrypted_packet, encrypted_packet_len, decrypted_packet) != 0) //returns non-zero on failure //can be checked if(condition)...but doint explicity != 0 readability
-    {
-        STATUS_LED_RED();
-        print_error("Failed to decrypt frame data\n");
-        return -1;
-    }
+//     if(ecdh_decrypt(DECODER_PRIVATE_KEY, ENCODER_PUBLIC_KEY, iv, encrypted_packet, encrypted_packet_len, decrypted_packet) != 0) //returns non-zero on failure //can be checked if(condition)...but doint explicity != 0 readability
+//     {
+//         STATUS_LED_RED();
+//         print_error("Failed to decrypt frame data\n");
+//         return -1;
+//     }
 
-    print_debug("Decrypted frame data successfully\n");
+//     print_debug("Decrypted frame data successfully\n");
 
-    // Extract the frame data
+//     // Extract the frame data
 
-    frame_packet_t *decrypted_frame = (frame_packet_t *)decrypted_packet;
+//     frame_packet_t *decrypted_frame = (frame_packet_t *)decrypted_packet;
 
 
-    uint8_t *encrypted_frame = decrypted_frame->data;
-    int frame_n_iv_size = pkt_len - (sizeof(decrypted_frame->channel) + sizeof(decrypted_frame->timestamp));
+//     uint8_t *encrypted_frame = decrypted_frame->data;
+//     int frame_n_iv_size = pkt_len - (sizeof(decrypted_frame->channel) + sizeof(decrypted_frame->timestamp));
 
-    uint8_t iv_frame[AES_BLOCK_SIZE]; //could be 32
-    memcpy(iv_frame, encrypted_frame , AES_BLOCK_SIZE);
+//     uint8_t iv_frame[AES_BLOCK_SIZE]; //could be 32
+//     memcpy(iv_frame, encrypted_frame , AES_BLOCK_SIZE);
 
-    //---------------------------
-    uint8_t channel_key [CHANNEL_KEY_SIZE]; // Adjust size as needed
-    get_channel_key(decrypted_frame->channel, channel_key);
-    uint8_t decrypted_frame_data[MAX_FRAME_SIZE]; // Adjust size as needed
+//     //---------------------------
+//     uint8_t channel_key [CHANNEL_KEY_SIZE]; // Adjust size as needed
+//     get_channel_key(decrypted_frame->channel, channel_key);
+//     uint8_t decrypted_frame_data[MAX_FRAME_SIZE]; // Adjust size as needed
     
-    uint8_t *encrypted_frame_data = encrypted_frame + AES_BLOCK_SIZE;
-    int encrypted_frame_data_len = frame_n_iv_size - AES_BLOCK_SIZE;
+//     uint8_t *encrypted_frame_data = encrypted_frame + AES_BLOCK_SIZE;
+//     int encrypted_frame_data_len = frame_n_iv_size - AES_BLOCK_SIZE;
 
 
-    //  Initialize AES
-    Aes aes;
-    if (wc_AesInit(&aes, NULL, 0) != 0) {
-        print_debug("AES initialization failed\n");
-        return -1;
-    }
-    // Set up decryption
-    if (wc_AesSetKey(&aes, channel_key, CHANNEL_KEY_SIZE, iv_frame, AES_DECRYPTION) != 0) {
-        print_debug("Setting AES key failed\n");
-        return -1;
-    }
+//     //  Initialize AES
+//     Aes aes;
+//     if (wc_AesInit(&aes, NULL, 0) != 0) {
+//         print_debug("AES initialization failed\n");
+//         return -1;
+//     }
+//     // Set up decryption
+//     if (wc_AesSetKey(&aes, channel_key, CHANNEL_KEY_SIZE, iv_frame, AES_DECRYPTION) != 0) {
+//         print_debug("Setting AES key failed\n");
+//         return -1;
+//     }
     
 
-    // Decrypt the frame data using the channel key
-    if (wc_AesCbcDecrypt(&aes, decrypted_frame_data, encrypted_frame_data, encrypted_frame_data_len) != 0) { //WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out , const byte* in, word32 sz);
-        print_debug("AES decryption failed\n");
-        return -1;
-    }
+//     // Decrypt the frame data using the channel key
+//     if (wc_AesCbcDecrypt(&aes, decrypted_frame_data, encrypted_frame_data, encrypted_frame_data_len) != 0) { //WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out , const byte* in, word32 sz);
+//         print_debug("AES decryption failed\n");
+//         return -1;
+//     }
 
-    char output_buf[128] = {0};
-    sprintf(output_buf, "Decrypted frame data: %s\n", decrypted_frame_data);
-    print_debug(output_buf);
+//     char output_buf[128] = {0};
+//     sprintf(output_buf, "Decrypted frame data: %s\n", decrypted_frame_data);
+//     print_debug(output_buf);
 
-    // decode(frame_n_iv_size, decrypted_frame_data);
-    write_packet(DECODE_MSG, decrypted_frame->data, encrypted_frame_data_len);
+//     // decode(frame_n_iv_size, decrypted_frame_data);
+//     write_packet(DECODE_MSG, decrypted_frame->data, encrypted_frame_data_len);
 
 
-}
+// }
 
 int old_decode(pkt_len_t pkt_len, frame_packet_t *new_frame) {
     char output_buf[128] = {0};
@@ -1265,7 +1303,9 @@ void crypto_example(void)
 
 /*********************** MAIN LOOP ************************/
 int main(void)
-{
+{   
+    // THIS_DECODER_ID = hexstr_to_uint32(getenv("DECODER_ID"));
+
     char output_buf[128] = {0};
     uint8_t uart_buf[UART_BUFFER_SIZE] = {0};
     msg_type_t cmd;

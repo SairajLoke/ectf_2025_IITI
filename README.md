@@ -13,12 +13,11 @@ docker run --rm -v ./decoder/:/decoder -v ./secrets/secrets.h:/secrets.h:ro -v .
 <!--  -->
 )
 
-To Add some information of the security of our decoder here
+Setting up the code
+/usr/bin/python3.12 -m venv .venv --without-pip --prompt ectf-example
 
-here
-
-
-
+(make sure to rmv wolfssl from .gitignore)
+curl -sS https://bootstrap.pypa.io/get-pip.py | python
 .
 
 
