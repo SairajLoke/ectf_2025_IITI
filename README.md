@@ -1,4 +1,4 @@
-NOTE:
+
 
 some cmds
 1. python json2h.py (assumes secrets.json in secret folder, and secrets.h to be written in inc..trivial to change locs)
